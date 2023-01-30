@@ -1,0 +1,197 @@
+## Title: "R_Programming Individual Project"
+
+## Author: "Paliz Mungkaladung - MBD 2021"
+
+## Date: "2022-07-11"
+
+## 00 - Introduction
+
+We are going to perform EDA on the AMS 2013-2014 Solar Energy Prediction Contest using R programming language. AMS 2013-2014 Solar Energy Prediction Contest Forecast daily solar energy with an ensemble of weather models
+
+Data source :<https://www.kaggle.com/competitions/ams-2014-solar-energy-prediction-contest>
+
+## 01 - Loading packages
+
+    library(readr) # Data reader
+    library(dplyr) # A grammar of data manipulation
+    library(tibble) # Modern take on data frames.
+    library(dlookr) # Tools for Data Diagnosis, Exploration, and Transformation  
+    library(DataExplorer) # Automate Data Exploration and Treatment
+    library(skimr) # Useful summary statistics
+    library(lubridate) #Using wday function to tell the day of the week
+    library(ggplot2) # Data visualization
+
+## 02 - Loading datasets
+
+File with name, latitude, longitude, and elevation of each of the 98 stations.
+
+    station_info <- read_csv('~/R_Programming/station_info.csv')
+
+The real values of solar production recorded in 98 different weather stations ranging from 1994-01-01 to 2012-11-30
+
+    solar_dataset <-readRDS(file = '\~/R_Programming/solar_dataset.RData')
+
+![](images/Screenshot%202022-07-11%20at%2007.46.14.png)
+
+The 100 original variables detected as more important to predict the first station (column 2 ACME) values, after feature importance analysis
+
+    additional_variables <- readRDS(file = '\~/R_Programming/additional_variables.RData')
+
+## 03 - Exploratory Data Analysis
+
+We are going to perform EDA of the solar_dataset which is the main dataset.
+
+### 3.1 - Data size and structure
+
+total dimension of 6909 rows and 456 columns.
+
+    dim(solar_dataset) 
+    glimpse(solar_dataset)
+
+### 3.2 - Data cleaning
+
+Next, we starts to the data cleaning process.Let's look for missing values using the DataExplorer package.
+
+    plot_missing(solar_dataset, missing_only = TRUE) options(repr.plot.width=8, repr.plot.height=3)
+    plot_missing(solar_dataset)
+
+![](images/Rplot02.png)
+
+Looking at the size of the dataset and the missing value plot, it seems as if we can remove the missing values and still have a good-sized set of data to work on, so let's start by doing that.
+
+    solar_dataset <- na.omit(solar_dataset) dim(solar_dataset)
+
+New dimensions : 5113 rows and 456 columns
+
+Let's convert the column Date (character) to datetime. It' will's going be useful for our EDA.
+
+    solar_dataset$Date <- as.Date(solar_dataset$Date, format = "%Y%m%s")
+
+Then, we create new columns for year, month, and day using Tidyr :: Separate
+
+    solar_dataset_dt <- tidyr::separate(solar_dataset, Date, c('year', 'month', 'day'), sep = "-",remove = FALSE)
+
+![](images/Screenshot%202022-07-11%20at%2007.49.28.png)
+
+We will also create a new variable that tells us the day of the week, using the wday function from the lubridate package.
+
+    solar_dataset_dt$dayOfWeek <- wday(solar_dataset_dt$Date, label=TRUE)
+
+Because the Principal components won't be used in this study. We will exclude all PC columns in order to consider only the real values of solar production recorded in 98 different weather stations
+
+    sub_solar_dataset <- subset(solar_dataset_dt, select = -c(100:456))
+
+    dim(sub_solar_dataset) head(sub_solar_dataset)
+
+![](images/Screenshot%202022-07-11%20at%2007.55.39.png)
+
+New dimension : 5113 rows and 103 columns
+
+### 3.3 - Data summary
+
+Let's check the data size and structure.
+
+    glimpse(sub_solar_dataset)
+
+To review the useful statistics, we apply the Skimr library.
+
+    skim(sub_solar_dataset)
+
+![](images/Screenshot%202022-07-11%20at%2007.57.48.png)
+
+### 3.4 - Checking outlier
+
+Let's look for the ouliers.
+
+    diagnose_outlier(sub_solar_dataset)
+
+![](images/Screenshot%202022-07-11%20at%2007.58.55.png)
+
+Fortunately, there's no outlier found.
+
+See the outlier diagnosis plot
+
+    sub_solar_dataset %\>% plot_outlier(BOIS) 
+    #change the name of the station in () to see the differnt plots
+
+![](images/Rplot03.png)
+
+### 3.5 - Running Diagnose Web Report
+
+Using diagnose_web_report to check out data. It generates the previous steps of data diagnosis automatically.
+
+    diagnose_web_report(sub_solar_dataset)
+
+![](images/Screenshot%202022-07-11%20at%2008.03.21.png)
+
+## 4 - Descriptive statistics
+
+Let's review the descriptive statistics of our dataset.
+
+### 4.1 - Statistics summary
+
+See the statistics summary
+
+    summary(sub_solar_dataset)
+
+See descriptive statistics
+
+    describe(sub_solar_dataset)
+
+Check normality
+
+    normality(sub_solar_dataset) 
+
+If p-value =\< alpha A , data isn't normalized. Fortunately, we are good here.
+
+Plot normality
+
+    sub_solar_dataset %\>% plot_normality(BOIS)
+
+Plot density
+
+    plot_density(sub_solar_dataset)
+
+![](images/Screenshot%202022-07-11%20at%2003.26.58.png)
+
+### 4.2 - Correlation matrix
+
+By running correlation matrix, we can improve this part by extracting the columns date to datetime, day, month, and year.
+
+    correlate(sub_solar_dataset)
+
+Plot correlation
+
+    matrix plot_correlate(sub_solar_dataset) 
+
+![](images/Screenshot%202022-07-11%20at%2008.06.21.png)
+
+It seems like we have too many features. The plot isn't visible.
+
+### 4.3 - Generating EDA report
+
+Create EDA report using only One Line code
+
+    eda_web_report(sub_solar_dataset)
+
+## 5 - Play with the dataset
+
+Let's plot the location of each solar station vs thier elevation.
+
+    g \<- list( scope = "usa", projection = list(type = "albers usa", scale = 1), showland = TRUE, landcolor =            toRGB("gray95"), subunitcolor = toRGB("gray85"), countrycolor = toRGB("gray85"), countrywidth = 0.5, subunitwidth     = 0.5 )
+
+    fig \<- plot_geo(station_info, lat = \~nlat, lon = \~elon) #fig \<- plot_geo(station_info, lat = \~nlat, lon =        \~elon) fig \<- fig %\>% add_markers( text = \~paste(stid, paste("Elevation (m):", elev), sep = "<br />"), color =     \~elev, symbol = I("circle"), size = I(20), hoverinfo = "text" ) fig \<- fig %\>% colorbar(title = "Elevation         (feet)") fig \<- fig %\>% layout( title = "Station info.", geo = g )
+
+    fig
+
+![](images/Screenshot%202022-07-11%20at%2000.23.14.png)
+
+## 6 - Conclusion
+
+We see that the solar_dataset has to many features (station). This is a big challenge in performing EDA by R programming. Becasue it requires a proper data preparation to make it easy to visualize. I believe that working further of plotting day of week, month and year VS #sum of solar energy of each station will give us more insight of this dataset.
+
+## References:
+
+-   <https://rpubs.com/linggaajiandika/EDA>
+-   <https://towardsdatascience.com/four-r-packages-for-automated-exploratory-data-analysis-you-might-have-missed-c38b03d4ee16>
+-   <https://www.kaggle.com/code/chrisbow/e-commerce-eda-and-segmentation-with-r>
